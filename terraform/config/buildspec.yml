@@ -1,0 +1,67 @@
+version: 0.2
+
+env:
+  variables:
+    CI: "true"
+    REPOSITORY_REGION: "us-east-2"
+    ENV: "env"
+    APP: "app"
+    NAME_CONTAINER: "container"
+    TERRAFORM_VERSION: "1.0.2"
+
+phases:
+  pre_build:
+    commands:
+      - curl -sSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip" -o terraform.zip
+      - unzip terraform.zip -d /usr/local/bin && chmod +x /usr/local/bin/terraform
+      - export REGISTRY_ID=`aws sts get-caller-identity --output text | awk '{print $1}'`
+      - export REPO_NAME="${REGISTRY_ID}.dkr.ecr.${REPOSITORY_REGION}.amazonaws.com/${APP_NAME}-${ENV}-${NAME_CONTAINER}"
+      - pip install jq
+      - echo "Getting existing tag"
+      - SERVICE_ARN=$(aws ecs list-services --cluster ${APP}-${ENV}-${NAME_CONTAINER}-cluster | jq -r .serviceArns[])
+      - echo "Current service arn is ${SERVICE_ARN}"
+      - export SERVICE_ARN
+      - TASKDEF_ARN=$(aws ecs describe-services --cluster ${APP}-${ENV}-${NAME_CONTAINER}-cluster --service ${SERVICE_ARN} | jq -r .services[].taskDefinition)
+      - echo "Current taskdef arn is ${TASKDEF_ARN}"
+      - export TASKDEF_ARN
+      - EXISTING_TAG=$(aws ecs describe-task-definition --task-definition ${TASKDEF_ARN} | jq -r .taskDefinition.containerDefinitions[].image | tr ':' ' ' | awk '{print $2}')
+      - echo "Current version is ${EXISTING_TAG}"
+      - export EXISTING_TAG
+
+  build:
+    commands:
+      - echo "Build and push docker images"
+      - TAG="${CODEBUILD_RESOLVED_SOURCE_VERSION}-${APP}-${ENV}-${NAME_CONTAINER}"
+      - echo "Building version ${TAG}"
+      - export TAG
+      - echo "Current codebuild source directory is ${CODEBUILD_SRC_DIR}"
+      - cd "${CODEBUILD_SRC_DIR}/app"
+      - make build
+
+      - cd ${CODEBUILD_SRC_DIR}/terraform
+      - terraform init
+      - terraform plan -target=module.ecs_cluster --var-file="./config/${ENV}.tfvars" -var="image_tag=${TAG}" -no-color -input=false -out plan.out
+      - terraform apply -auto-approve -no-color -input=false plan.out
+
+  post_build:
+    commands:
+      - |
+        if [ $CODEBUILD_BUILD_SUCCEEDING != 0 ]; then
+          NEWTAG=''
+          while [ "${NEW_TAG}" != "${TAG}" ];
+          do
+            NEW_SERVICE_ARN=$(aws ecs list-services --cluster ${APP}-${ENV}-${NAME_CONTAINER}-cluster | jq -r .serviceArns[])
+            echo "Current service arn is ${NEW_SERVICE_ARN}"
+            NEW_TASKDEF_ARN=$(aws ecs describe-services --cluster ${APP}-${ENV}-${NAME_CONTAINER}-cluster --service ${NEW_SERVICE_ARN} | jq -r .services[].taskDefinition)
+            echo "Current taskdef arn is ${NEW_TASKDEF_ARN}"
+            NEW_TAG=$(aws ecs describe-task-definition --task-definition ${NEW_TASKDEF_ARN} | jq -r .taskDefinition.containerDefinitions[].image | tr ':' ' ' | awk '{print $2}')
+            echo "Waiting until new image started... Tag: ${TAG} New tag: ${NEW_TAG}"
+            if [ "${NEW_TAG}" != ${TAG} ]; then
+              sleep 10
+            fi
+            echo "Cluster has been deployed"
+          done
+        else
+          echo "Build failed"
+        fi
+      - echo "Finish"
