@@ -4,16 +4,16 @@ terraform {
 /*
   # S3 bucket for environment "dev"
   backend "s3" {
-    bucket         = "bucket-web1-dev-nginx1-us-east-2"
+    bucket         = "mybucket-web1-dev-nginx1-us-east-2"
     key            = "dev/terraform.tfstate"
     region         = "us-east-2"
     encrypt        = true
-    dynamodb_table = "table-web1-dev-nginx1-us-east-2"
+    dynamodb_table = "mytable-web1-dev-nginx1-us-east-2"
   }
 */
 
   # S3 bucket for environment "prod"
-  
+
   backend "s3" {
     bucket         = "bucket-web2-prod-nginx2-us-east-2"
     key            = "prod/terraform.tfstate"
