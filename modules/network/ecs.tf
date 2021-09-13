@@ -47,7 +47,6 @@ resource "aws_ecs_service" "web_server" {
   network_configuration {
     security_groups = [aws_security_group.web_server_task.id]
     subnets         = aws_subnet.private_subnet.*.id
-    #assign_public_ip = true
   }
 
   load_balancer {
