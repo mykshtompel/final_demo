@@ -12,14 +12,15 @@ This solution was created to demonstrate how deploying a web application in Dock
 The solution creates AWS infrastructure for development and production environments and CI/CD pipeline according to specified requirements to build and deploy a web application in Docker container on ECS Cluster based on Fargate by every commit to particular git branch ("develop" or "main").
 
 The repo contains the next components:
-* Web application
-* Root Terraform module
-* Terraform modules
-  * S3 Terraform state - Stores a Terraform state
-  * Elastic container registry - Creates an Elastic container registry (ECR) repository to store Docker images
-  * Initial build - Builds and pushes initial Docker image to ECR repository
-  * ECS cluster - Creates a VPC and a ECS cluster
-  * Codebuild - Creates a Codebuild project
+* Terraform project
+  * Web application
+  * Root Terraform module
+  * Terraform modules
+    * S3 Terraform state - Stores a Terraform state
+    * Elastic container registry - Creates an Elastic container registry (ECR) repository to store Docker images
+    * Initial build - Builds and pushes initial Docker image to ECR repository
+    * ECS cluster - Creates a VPC and a ECS cluster
+    * Codebuild - Creates a Codebuild project
 * Presentation
 
 ## Folders and Files
