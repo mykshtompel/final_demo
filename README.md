@@ -7,38 +7,45 @@ This page describes how to deploy a web application in Docker container on AWS u
 - Docker - 20.10.8
 
 ## Description
-This solution was created to demonstrate how deploying a web application in Docker container by creating a cloud infrastructure on AWS based on "Infrastructure as a code" using Terraform looks like. It consists of Terraform modules, root Terraform module and configuration files to create infrastructure.
+This solution was created to demonstrate how deploying a web application in Docker container by creating a cloud infrastructure on AWS based on "Infrastructure as a code" using Terraform looks like. It consists of a web application, Terraform modules, root Terraform module and configuration files to create infrastructure.
 
-The solution creates AWS infrastructure according to specified requirements.
+The solution creates AWS infrastructure for development and production environments and CI/CD pipeline according to specified requirements to build and deploy a web application in Docker container on ECS Cluster based on Fargate by every commit to particular git branch ("develop" or "main").
 
 The repo contains the next components:
-* Terraform project
+* Web application
+* Root Terraform module
+* Terraform modules
+  * S3 Terraform state - Stores a Terraform state
+  * Elastic container registry - Creates an Elastic container registry (ECR) repository to store Docker images
+  * Initial build - Builds and deploys initial Docker image to ECR repository
+  * ECS cluster - Creates a VPC and a ECS cluster
+  * Codebuild - Creates a Codebuild project
 * Presentation
 
 ## Folders and Files
-- ./presentation - presentation of the project
-- ./app - app directory
-  - .web
-    - index.html
+- /presentation - presentation of the project
+- /app - app directory
+  - ./web
   - Dockerfile
   - Makefile
-- ./modules - Terraform modules
-  - s3
-  - ecr
-  - init-build
-  - network
-  - codebuild
-- ./terraform - root Terraform module
+- /terraform - root Terraform module
   - ./config - configuration directory
-    -  dev.tfvars
-    -  prod.tfvars
-    -  secret.tfvars (not presented in the repo)
-    - buildspec.yml
-  - provider.tf
-  - terraform.tf
-  - variables.tf
-  - main.tf
-  - outputs.tf
+    - dev.tfvars - Contains variable values for development environment (git branch "develop")
+    - prod.tfvars - Contains variable values for development environment (git branch "main")
+    - secret.tfvars - Contains secrets (Github token) for Github repository (not presented in the repo)
+    - buildspec.yml - Build SPEC for AWS Codebuild
+  - provider.tf - AWS provider configuration
+  - terraform.tf - Terraform configuration
+  - variables.tf - Terraform variables
+  - main.tf - Terraform main file
+  - outputs.tf - Terraform outputs
+- /modules - Terraform modules
+  - s3 - "S3 Terraform state" module directory
+  - ecr - "Elastic container registry" module directory
+  - init-build - "Initial build" module directory
+  - network - "ECS cluster" module directory
+  - codebuild - "Codebuild" module directory
+
 
 ## Implemention
 ### Preparation
@@ -46,6 +53,8 @@ The repo contains the next components:
 - Create an user with required permissions using AWS IAM
 - Install the required version of Terraform, AWS CLI, and Docker
 - Download the repo content
+- Obtain Github token
+- Create secret.tfvars and add next content "github_oauth_token = YOUR GITHUB TOKEN"
 - Change variable values in *.tfvars
 
 ### Deployment
@@ -56,19 +65,19 @@ The repo contains the next components:
 aws_access_key_id = YOUR AWS ACCESS KEY ID  
 aws_secret_access_key = YOUR AWS SECRET ACCESS KEY  
 
-#### Steps for environment "dev"
-- Copy terraform project to your github repo to branch "develop" (backend "s3" for "dev" in file ./terraform/terraform.tf should be uncommented)
+#### Steps for development environment
+- Copy terraform project to your github repo to branch "develop" (backend "s3" for "dev" in ./terraform/terraform.tf file should be uncommented)
 
-- Comment backend "s3" for "dev" and "prod" in file ./terraform/terraform.tf
+- Comment backend "s3" for "dev" and "prod" in ./terraform/terraform.tf file
 
-- Go to the directory ./terraform on your local machine and run:
+- Go to ./terraform directory on your local machine and run:
 
 terraform init  
 terraform apply -target=module.s3_terraform_state --var-file=./config/dev.tfvars  
 
-- Uncomment backend "s3" for "dev" in file ./terraform/terraform.tf
+- Uncomment backend "s3" for "dev" in ./terraform/terraform.tf file
 
-- Go to the directory ./terraform and run (use your ./terraform/config/secret.tfvars):
+- Go to ./terraform directory and run (use your ./terraform/config/secret.tfvars):
 
 terraform init  
 terraform apply -target=module.elastic_container_registry --var-file=./config/dev.tfvars  
@@ -77,30 +86,30 @@ terraform apply -target=module.ecs_cluster --var-file=./config/dev.tfvars
 terraform apply -target=module.codebuild --var-file=./config/dev.tfvars --var-file=./config/secret.tfvars  
 
 - Check results
-  - Go to your AWS account and check created infrastructure elements 
+  - Go to your AWS account and check created infrastructure resources 
   - Go to the DNS name created Application Load Balancer and check an information on a web page
 
-- Change file app/web/index.html in local git directory and push changes to your github repo to branch "develop"
+- Change app/web/index.html file in local git directory and push changes to your github repo to branch "develop"
 
 - Check results
-  - Go to your AWS account and check created infrastructure elements 
+  - Go to your AWS account and check created infrastructure resources 
   - Go to the DNS name created Application Load Balancer and check an information on a web page
 
-#### Steps for environment "prod"
-- Copy terraform project to your github repo to branch "prod" (backend "s3" for "prod" in file ./terraform/terraform.tf should be uncommented)
+#### Steps for production environment
+- Copy terraform project to your github repo to branch "prod" (backend "s3" for "prod" in ./terraform/terraform.tf file should be uncommented)
 
-- Delete files ./terraform/.terraform, ./terraform/terraform.tfstate, ./terraform/terraform.tfstate.backup, ./terraform/.terraform.lock.hcl from your local machine
+- Delete ./terraform/.terraform, ./terraform/terraform.tfstate, ./terraform/terraform.tfstate.backup, ./terraform/.terraform.lock.hcl files from your local machine
 
-- Comment backend "s3" for "dev" in file ./terraform/terraform.tf
+- Comment backend "s3" for "dev" in ./terraform/terraform.tf file
 
-- Go to the directory ./terraform and run:
+- Go to ./terraform directory and run:
 
 terraform init  
 terraform apply -target=module.s3_terraform_state --var-file=./config/prod.tfvars  
 
-- Uncomment backend "s3" for "prod" in file ./terraform/terraform.tf
+- Uncomment backend "s3" for "prod" in ./terraform/terraform.tf file
 
-- Go to the directory ./terraform and run (use your ./terraform/config/secret.tfvars):
+- Go to ./terraform directory and run (use your ./terraform/config/secret.tfvars file):
 
 terraform init  
 terraform apply -target=module.elastic_container_registry --var-file=./config/prod.tfvars  
@@ -109,13 +118,13 @@ terraform apply -target=module.ecs_cluster --var-file=./config/prod.tfvars
 terraform apply -target=module.codebuild --var-file=./config/prod.tfvars --var-file=./config/secret.tfvars  
 
 - Check results
-  - Go to your AWS account and check created infrastructure elements 
+  - Go to your AWS account and check created infrastructure resources 
   - Go to the DNS name created Application Load Balancer and check an information on a web page
 
-- Change file app/web/index.html in local git directory and push changes to your github repo to branch "prod"
+- Change app/web/index.html file in local git directory and push changes to your github repo to branch "prod"
 
 - Check results
-  - Go to your AWS account and check created infrastructure elements 
+  - Go to your AWS account and check created infrastructure resources 
   - Go to the DNS name created Application Load Balancer and check an information on a web page
 
 #### Final step
