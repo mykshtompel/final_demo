@@ -1,4 +1,4 @@
-# AWS + Terraform + Docker
+# Deploy a Web Application in Docker Container on AWS Using Terraform
 This page describes how to deploy a web application in Docker container on AWS using Terraform. 
 
 ### Tool versions:
