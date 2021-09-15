@@ -17,17 +17,17 @@ The repo contains the next components:
 * Terraform modules
   * S3 Terraform state - Stores a Terraform state
   * Elastic container registry - Creates an Elastic container registry (ECR) repository to store Docker images
-  * Initial build - Builds and deploys initial Docker image to ECR repository
+  * Initial build - Builds and pushes initial Docker image to ECR repository
   * ECS cluster - Creates a VPC and a ECS cluster
   * Codebuild - Creates a Codebuild project
 * Presentation
 
 ## Folders and Files
 - /presentation - presentation of the project
-- /app - app directory
-  - ./web
-  - Dockerfile
-  - Makefile
+- /app - application directory
+  - ./web - web application content directory
+  - Dockerfile - special file, containing script of instructions, to build Docker image
+  - Makefile -  special file, containing shell commands, to build and push Docker image to ECR repository
 - /terraform - root Terraform module
   - ./config - configuration directory
     - dev.tfvars - Contains variable values for development environment (git branch "develop")
