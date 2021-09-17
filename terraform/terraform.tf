@@ -1,4 +1,4 @@
-# Required version of Terraform
+# Required version of Terraform and AWS provider, S3 bucket configuration 
 terraform {
   required_version = "= 1.0.2"
 
